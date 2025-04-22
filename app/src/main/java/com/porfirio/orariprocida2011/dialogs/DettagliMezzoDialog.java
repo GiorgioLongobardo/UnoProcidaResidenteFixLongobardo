@@ -46,6 +46,7 @@ import com.porfirio.orariprocida2011.threads.taxies.TaxisDAO;
 import com.porfirio.orariprocida2011.utils.Analytics;
 
 
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -235,7 +236,7 @@ public class DettagliMezzoDialog extends DialogFragment implements OnClickListen
         if (mezzo.segnalazionePiuComune() > -1) {
             spc = ragioni[mezzo.segnalazionePiuComune()];
         }
-        if (mezzo.tot > 0 || mezzo.conferme > 0 || !getWeatherConditionsString(getContext(), mezzo).isEmpty()) {
+        if (mezzo.tot > 0 || mezzo.conferme > 0 || !getWeatherConditionsString(getContext(), mezzo, calen).isEmpty()) {
             StringBuilder alert = new StringBuilder();
             if (mezzo.tot > 0) {
                 if (mezzo.conc) {
@@ -251,8 +252,8 @@ public class DettagliMezzoDialog extends DialogFragment implements OnClickListen
                 alert.append(mezzo.conferme).append(mezzo.conferme == 1 ? " " + getString(R.string.utenteDice) : " " + getString(R.string.utentiDicono));
                 alert.append(" ").append(getString(R.string.cheLaCorsaERegolare));
             }
-            if (!getWeatherConditionsString(getContext(), mezzo).isEmpty()) {
-                alert.append(getWeatherConditionsString(getContext(), mezzo));
+            if (!getWeatherConditionsString(getContext(), mezzo, calen).isEmpty()) {
+                alert.append(getWeatherConditionsString(getContext(), mezzo, calen));
             }
             txtAllertaMeteo.setVisibility(VISIBLE);
             txtAllertaMeteo.setText(alert);
@@ -580,8 +581,8 @@ public class DettagliMezzoDialog extends DialogFragment implements OnClickListen
         }
     }
 
-    private String getWeatherConditionsString(Context context, Mezzo route) {
-        double extraWind = meteo.getForecast(context, route);
+    private String getWeatherConditionsString(Context context, Mezzo route, Calendar calen) {
+        double extraWind = meteo.getForecast(context, route, calen);
 
         if (extraWind <= 0)
             return "";

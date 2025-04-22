@@ -12,8 +12,11 @@
 
     <color name="border_spinner_color">#FFFFFF</color>
 
+    <color name="titlePickerColor">#FFFFFF</color>
+    <color name="dayNamePickerColor">#FFFFFF</color>
     <color name="list_item_spinner_background_color">#1D2653</color>
     <color name="list_item_spinner_border_color">#1D2653</color>
+
 
     <color name="spinner_text_color">#FFFFFF</color>
     <color name="grey">#9C9C9C</color>

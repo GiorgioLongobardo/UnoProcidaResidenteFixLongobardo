@@ -127,6 +127,14 @@
                     android:src="@drawable/baseline_clock_24"
                     tools:ignore="ContentDescription" />
 
+                <ImageButton
+                    android:id="@+id/date_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0.15"
+                    android:background="@drawable/image_button_main_background"
+                    android:src="@drawable/baseline_calendar_month_24"
+                    tools:ignore="ContentDescription" />
             </LinearLayout>
 
             <View

@@ -8,22 +8,24 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public class Meteo {
 
     private static List<Osservazione> forecasts = new ArrayList<>();
 
-
-    public double getForecast(Context context, Mezzo route) {
+    public double getForecast(Context context, Mezzo route, Calendar calen) {
 
         if (forecasts.isEmpty()) {
             return 0;
         }
 
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime departureTime = LocalDate.now().atTime(route.getDepartureTime());
 
+        LocalDate selectedDate = LocalDate.of(calen.get(Calendar.YEAR), calen.get(Calendar.MONTH) + 1, calen.get(Calendar.DAY_OF_MONTH));
+
+        LocalDateTime departureTime = selectedDate.atTime(route.getDepartureTime());
         // NOTE: workaround because departure time doesn't save the actual day so it may be checking the next-day route
         if (departureTime.isBefore(now)) {
             departureTime = departureTime.plusDays(1);
@@ -31,12 +33,14 @@ public class Meteo {
 
         int hoursUntilDeparture = (int) Duration.between(now, departureTime).getSeconds() / (60 * 60);
         int forecastIndex = hoursUntilDeparture / 3;
-
         double limitBeaufort = 0.0;
         double actualBeaufort = 0.0;
 
         if (forecastIndex < forecasts.size()) {
             actualBeaufort = forecasts.get(forecastIndex).getWindBeaufort();
+        }else{
+            //caso in cui la corsa è troppo avanti nel tempo e non si hanno le previsioni per quell'ora
+            return 0;
         }
 
         if (isSummer(now)) {

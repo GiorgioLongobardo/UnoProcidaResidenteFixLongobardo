@@ -4,7 +4,9 @@ import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -38,26 +40,26 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.airbnb.lottie.LottieAnimationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
+import com.porfirio.orariprocida2011.R;
 import com.porfirio.orariprocida2011.adapter.MezzoAdapter;
+import com.porfirio.orariprocida2011.dialogs.DettagliMezzoDialog;
 import com.porfirio.orariprocida2011.dialogs.WeatherDialog;
+import com.porfirio.orariprocida2011.entity.Alert;
+import com.porfirio.orariprocida2011.entity.Compagnia;
+import com.porfirio.orariprocida2011.entity.Meteo;
+import com.porfirio.orariprocida2011.entity.Mezzo;
+import com.porfirio.orariprocida2011.entity.Osservazione;
+import com.porfirio.orariprocida2011.threads.alerts.AlertUpdate;
+import com.porfirio.orariprocida2011.threads.alerts.OnRequestAlertsDAO;
 import com.porfirio.orariprocida2011.threads.companies.CompaniesUpdate;
 import com.porfirio.orariprocida2011.threads.companies.OnRequestCompaniesDAO;
 import com.porfirio.orariprocida2011.threads.taxies.OnRequestTaxisDAO;
 import com.porfirio.orariprocida2011.threads.transports.OnRequestTransportsDAO;
 import com.porfirio.orariprocida2011.threads.transports.TransportsUpdate;
-import com.porfirio.orariprocida2011.entity.Alert;
-import com.porfirio.orariprocida2011.threads.alerts.AlertUpdate;
-import com.porfirio.orariprocida2011.threads.alerts.OnRequestAlertsDAO;
-import com.porfirio.orariprocida2011.utils.Analytics;
-import com.porfirio.orariprocida2011.utils.AnalyticsApplication;
-import com.porfirio.orariprocida2011.R;
 import com.porfirio.orariprocida2011.threads.weather.OnRequestWeatherDAO;
 import com.porfirio.orariprocida2011.threads.weather.WeatherUpdate;
-import com.porfirio.orariprocida2011.dialogs.DettagliMezzoDialog;
-import com.porfirio.orariprocida2011.entity.Compagnia;
-import com.porfirio.orariprocida2011.entity.Meteo;
-import com.porfirio.orariprocida2011.entity.Mezzo;
-import com.porfirio.orariprocida2011.entity.Osservazione;
+import com.porfirio.orariprocida2011.utils.Analytics;
+import com.porfirio.orariprocida2011.utils.AnalyticsApplication;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -106,11 +108,13 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
     private boolean hasReceivedWeather, hasReceivedCompanies, hasReceivedTransports, hasReceivedAlerts;
 
-    private ImageButton timeButton;
-    private Button timeResetButton, dateResetButton;
+    private ImageButton timeButton, dateButton;
+    private Button dateTimeChip;
     private SwipeRefreshLayout swipe_refresh_layout;
     private LottieAnimationView lottieLoader;
     private ImageView blurredBackground;
+    private boolean isTimePicked = false;
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -177,8 +181,8 @@ public class OrariProcida2011Activity extends FragmentActivity {
         meteo = new Meteo();
 
         timeButton = findViewById(R.id.time_button);
-        timeResetButton = findViewById(R.id.timeResetButton);
-        dateResetButton = findViewById(R.id.dateResetButton);
+        dateButton = findViewById(R.id.date_button);
+        dateTimeChip = findViewById(R.id.timeResetButton);
         weatherFab = findViewById(R.id.fabWeather);
 
         weatherFab.setOnClickListener(v -> {
@@ -215,9 +219,9 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
 
         timeButton.setOnClickListener(v -> {
-            Calendar calendar = Calendar.getInstance();
-            int hour = calendar.get(Calendar.HOUR_OF_DAY);
-            int minute = calendar.get(Calendar.MINUTE);
+
+            int hour = c.get(Calendar.HOUR_OF_DAY);
+            int minute = c.get(Calendar.MINUTE);
 
             TimePickerDialog timePickerDialog = new TimePickerDialog(
                     OrariProcida2011Activity.this,
@@ -225,7 +229,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                     (view, hourOfDay, minute1) -> {
                         Calendar currentCalendar = Calendar.getInstance();
 
-                        Calendar selectedTime = Calendar.getInstance();
+                        Calendar selectedTime = (Calendar) c.clone();
                         selectedTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
                         selectedTime.set(Calendar.MINUTE, minute1);
                         selectedTime.set(Calendar.SECOND, 0);
@@ -237,39 +241,80 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
                         c.setTime(selectedTime.getTime());
 
-                        timeResetButton.setText(String.format("%02d:%02d", hourOfDay, minute1));
-                        timeResetButton.setVisibility(VISIBLE);
+                        dateTimeChip.setText(String.format("%02d/%02d/%04d - %02d:%02d", selectedTime.get(Calendar.DAY_OF_MONTH),
+                                selectedTime.get(Calendar.MONTH) + 1,
+                                selectedTime.get(Calendar.YEAR), hourOfDay, minute1));
+                        dateTimeChip.setVisibility(VISIBLE);
+                        isTimePicked = true;
 
                         aggiornaLista();
                     },
                     hour, minute, true);
+
             timePickerDialog.show();
         });
 
+        dateButton.setOnClickListener(v -> {
+            int year = c.get(Calendar.YEAR);
+            int month = c.get(Calendar.MONTH);
+            int dayOfMonth = c.get(Calendar.DAY_OF_MONTH);
+
+            // Mostra il DatePickerDialog
+            @SuppressLint("DefaultLocale") DatePickerDialog datePickerDialog = new DatePickerDialog(
+                    OrariProcida2011Activity.this,
+                    R.style.DatePickerTheme,
+                    (view, year1, monthOfYear, dayOfMonth1) -> {
+                        // Impedire la selezione di date antecedenti alla data attuale
+                        Calendar currentCalendar = Calendar.getInstance();
+                        if (year1 < currentCalendar.get(Calendar.YEAR) ||
+                                (year1 == currentCalendar.get(Calendar.YEAR) && monthOfYear < currentCalendar.get(Calendar.MONTH)) ||
+                                (year1 == currentCalendar.get(Calendar.YEAR) && monthOfYear == currentCalendar.get(Calendar.MONTH) && dayOfMonth1 < currentCalendar.get(Calendar.DAY_OF_MONTH))) {
+                            year1 = currentCalendar.get(Calendar.YEAR);
+                            monthOfYear = currentCalendar.get(Calendar.MONTH);
+                            dayOfMonth1 = currentCalendar.get(Calendar.DAY_OF_MONTH);
+                        }
+
+                        // Imposta la data scelta
+                        c.set(Calendar.YEAR, year1);
+                        c.set(Calendar.MONTH, monthOfYear);
+                        c.set(Calendar.DAY_OF_MONTH, dayOfMonth1);
+
+                        //se si sceglie la data di oggi si imposta l'orario a quello attuale così da non mostrare corse antecedenti
+                        if (year1 == currentCalendar.get(Calendar.YEAR) && monthOfYear == currentCalendar.get(Calendar.MONTH) && dayOfMonth1 == currentCalendar.get(Calendar.DAY_OF_MONTH)) {
+                            Log.d("selectedDate", "entrato 1");
+                            c.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY));
+                            c.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE));
+                            c.set(Calendar.SECOND, 0);
+                            c.set(Calendar.MILLISECOND, 0);
+                            dateTimeChip.setText(String.format("%02d/%02d/%04d - %02d:%02d", dayOfMonth1, monthOfYear + 1, year1, currentCalendar.get(Calendar.HOUR_OF_DAY), currentCalendar.get(Calendar.MINUTE)));
+                        } else {
+                            // Se l'orario non è stato ancora scelto, imposta a mezzanotte
+                            if (!isTimePicked) {
+                                Log.d("selectedDate", "entrato 2");
+                                c.set(Calendar.HOUR_OF_DAY, 0);
+                                c.set(Calendar.MINUTE, 0);
+                                c.set(Calendar.SECOND, 0);
+                                c.set(Calendar.MILLISECOND, 0);
+                            }
+                            dateTimeChip.setText(String.format("%02d/%02d/%04d - %02d:%02d", dayOfMonth1, monthOfYear + 1, year1, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE)));
+                        }
+                        dateTimeChip.setVisibility(VISIBLE);
+                        aggiornaLista();
+                    },
+                    year, month, dayOfMonth);
+
+            datePickerDialog.getDatePicker().setMinDate(Calendar.getInstance().getTimeInMillis());
+            datePickerDialog.show();
+        });
 
 
-        timeResetButton.setOnClickListener(new View.OnClickListener() {
+        dateTimeChip.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Calendar currentCalendar = Calendar.getInstance();
-                c.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY));
-                c.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE));
-                timeResetButton.setVisibility(GONE);
-                aggiornaLista();
+                resetTime();
             }
         });
 
-        dateResetButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Calendar currentCalendar = Calendar.getInstance();
-                c.set(Calendar.YEAR, currentCalendar.get(Calendar.YEAR));
-                c.set(Calendar.MONTH, currentCalendar.get(Calendar.MONTH));
-                c.set(Calendar.DAY_OF_MONTH, currentCalendar.get(Calendar.DAY_OF_MONTH));
-                dateResetButton.setVisibility(GONE);
-                aggiornaLista();
-            }
-        });
 
         swipe_refresh_layout = findViewById(R.id.swipe_refresh_layout);
         swipe_refresh_layout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
@@ -290,7 +335,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
         transportList = new ArrayList<>();
         GridView lvMezzi = findViewById(R.id.listMezzi);
         selectMezzi = new ArrayList<>();
-        aalvMezzi = new MezzoAdapter(this, selectMezzi);
+        aalvMezzi = new MezzoAdapter(this, selectMezzi, c);
         lvMezzi.setAdapter(aalvMezzi);
 
         dettagliMezzoDialog = new DettagliMezzoDialog(alertsDAO, taxisDAO);
@@ -371,6 +416,19 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
     }
 
+    private void resetTime() {
+        Calendar currentCalendar = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, currentCalendar.get(Calendar.HOUR_OF_DAY));
+        c.set(Calendar.MINUTE, currentCalendar.get(Calendar.MINUTE));
+        c.set(Calendar.YEAR, currentCalendar.get(Calendar.YEAR));
+        c.set(Calendar.MONTH, currentCalendar.get(Calendar.MONTH));
+        c.set(Calendar.DAY_OF_MONTH, currentCalendar.get(Calendar.DAY_OF_MONTH));
+
+        dateTimeChip.setVisibility(GONE);
+        isTimePicked = false;
+        aggiornaLista();
+    }
+
     private void showSnackBar(String text) {
         Snackbar snackbar = Snackbar.make(findViewById(android.R.id.content),
                 text,
@@ -426,7 +484,10 @@ public class OrariProcida2011Activity extends FragmentActivity {
         String expandedArrivalLocation = espandiPorto(portoArrivo);
 
         LocalDateTime selectedDate = LocalDateTime.ofInstant(c.toInstant(), c.getTimeZone().toZoneId());
+        Log.d("selectedDate", "selectedDate " + selectedDate.toString());
         LocalDateTime oraLimite = selectedDate.plusDays(1);
+        Log.d("selectedDate", "oraLimite " + oraLimite.toString());
+
 
         for (Mezzo mezzo : transportList) {
             LocalDateTime oraNave = selectedDate.toLocalDate().atTime(mezzo.getDepartureTime());
@@ -467,6 +528,8 @@ public class OrariProcida2011Activity extends FragmentActivity {
         blurredBackground.setVisibility(GONE);
         lottieLoader.cancelAnimation();
         lottieLoader.setVisibility(GONE);
+        GridView lvMezzi = findViewById(R.id.listMezzi);
+        lvMezzi.smoothScrollToPosition(0);
 
     }
 

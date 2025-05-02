@@ -247,7 +247,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                         dateTimeChip.setVisibility(VISIBLE);
                         isTimePicked = true;
 
-                        aggiornaLista();
+                        aggiornaLista(false);
                     },
                     hour, minute, true);
 
@@ -299,7 +299,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                             dateTimeChip.setText(String.format("%02d/%02d/%04d - %02d:%02d", dayOfMonth1, monthOfYear + 1, year1, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE)));
                         }
                         dateTimeChip.setVisibility(VISIBLE);
-                        aggiornaLista();
+                        aggiornaLista(false);
                     },
                     year, month, dayOfMonth);
 
@@ -373,7 +373,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                 dettagliMezzoDialog.setListCompagnia(listCompagnia);
                 dettagliMezzoDialog.setReportShortcut(true);
                 dettagliMezzoDialog.show(fm, "fragment_edit_name");
-                aggiornaLista();
+                aggiornaLista(false);
             }
             return true;
         });
@@ -409,7 +409,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
         setSpinner();
 
-        aggiornaLista();
+        aggiornaLista(true);
         if (!portoPartenza.equals(getString(R.string.qualsiasi_porto))) {
             showSnackBar(getString(R.string.secondoMeVuoiPartireDa) + " " + portoPartenza);
         }
@@ -426,7 +426,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
         dateTimeChip.setVisibility(GONE);
         isTimePicked = false;
-        aggiornaLista();
+        aggiornaLista(false);
     }
 
     private void showSnackBar(String text) {
@@ -466,11 +466,11 @@ public class OrariProcida2011Activity extends FragmentActivity {
     }
 
 
-    private void aggiornaLista() {
+    private void aggiornaLista(Boolean forced) {
         blurredBackground.setVisibility(VISIBLE);
         lottieLoader.setVisibility(VISIBLE);
         lottieLoader.playAnimation();
-        if (!hasReceivedWeather || !hasReceivedTransports || !hasReceivedCompanies || !hasReceivedAlerts)
+        if ((!hasReceivedWeather || !hasReceivedTransports || !hasReceivedCompanies || !hasReceivedAlerts) && !forced)
             return;
 
         analytics.send(ANALYTICS_CATEGORY_APP_EVENT, "Aggiorna Lista");
@@ -582,7 +582,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
         spnNave.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 nave = parent.getItemAtPosition(pos).toString();
-                aggiornaLista();
+                aggiornaLista(false);
             }
 
             public void onNothingSelected(AdapterView<?> parent) {
@@ -623,7 +623,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                     setSpnPortoArrivo(spnPortoArrivo, adapter2);
                     setSpnPortoPartenza(spnPortoPartenza, adapter3);
                 }
-                aggiornaLista();
+                aggiornaLista(false);
             }
 
             public void onNothingSelected(AdapterView<?> parent) {
@@ -643,7 +643,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                     setSpnPortoPartenza(spnPortoPartenza, adapter2);
                     setSpnPortoArrivo(spnPortoArrivo, adapter3);
                 }
-                aggiornaLista();
+                aggiornaLista(false);
             }
 
             public void onNothingSelected(AdapterView<?> parent) {
@@ -764,7 +764,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                 }
             }
 
-            aggiornaLista();
+            aggiornaLista(false);
         } else {
             // TODO: handle exception
             Log.e("MainActivity", "OnAlertsUpdate: ", update.getError());
@@ -793,7 +793,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
         if (update.isValid()) {
             transportList.clear();
             transportList.addAll(update.getData());
-            aggiornaLista();
+            aggiornaLista(false);
 
             alertsDAO.requestUpdate();
 
@@ -819,7 +819,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
             meteo.setForecasts(forecasts);
 
-            aggiornaLista();
+            aggiornaLista(false);
 
             // NOTE: before it would show a complete dialog, as of now I changed it to just display a toast
             if (showToast) {

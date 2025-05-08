@@ -71,7 +71,18 @@ import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Objects;
 import java.util.TimeZone;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import com.porfirio.orariprocida2011.threads.weather.WeatherService;
+import com.porfirio.orariprocida2011.threads.alerts.AlertsService;
+import com.porfirio.orariprocida2011.threads.companies.CompaniesService;
+import com.porfirio.orariprocida2011.threads.taxies.TaxisService;
+import com.porfirio.orariprocida2011.threads.transports.TransportsService;
+import android.content.ComponentName;
+import android.content.ServiceConnection;
+import android.os.IBinder;
 
 public class OrariProcida2011Activity extends FragmentActivity {
 
@@ -114,6 +125,43 @@ public class OrariProcida2011Activity extends FragmentActivity {
     private LottieAnimationView lottieLoader;
     private ImageView blurredBackground;
     private boolean isTimePicked = false;
+    private WeatherService weatherService;
+    private boolean isBound = false;
+    private AlertsService alertsService;
+    private boolean isAlertsBound = false;
+
+    private final ServiceConnection alertsConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            AlertsService.LocalBinder binder = (AlertsService.LocalBinder) service;
+            alertsService = binder.getService();
+            isAlertsBound = true;
+            dettagliMezzoDialog = new DettagliMezzoDialog(alertsService, taxisDAO);
+            // dettagliMezzoDialog.setDettagliMezzoDialog(fm, OrariProcida2011Activity.this, OrariProcida2011Activity.this, c);
+            dettagliMezzoDialog.setAnalytics(analytics);
+            // segnalazioneDialog = new SegnalazioneDialog(alertsService);
+            alertsService.getUpdates().observe(OrariProcida2011Activity.this, OrariProcida2011Activity.this::onAlertsUpdate);
+        }
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            alertsService = null;
+            isAlertsBound = false;
+        }
+    };
+    private final ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            WeatherService.LocalBinder binder = (WeatherService.LocalBinder) service;
+            weatherService = binder.getService();
+            isBound = true;
+            weatherService.getUpdates().observe(OrariProcida2011Activity.this, OrariProcida2011Activity.this::onWeatherUpdate);
+        }
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            weatherService = null;
+            isBound = false;
+        }
+    };
 
 
     @Override
@@ -143,21 +191,23 @@ public class OrariProcida2011Activity extends FragmentActivity {
         weatherDAO = new OnRequestWeatherDAO();
         weatherDAO.getUpdates().observe(this, this::onWeatherUpdate);
         weatherDAO.requestUpdate();
+        Intent intent = new Intent(this, WeatherService.class);
+        startService(intent);
+        bindService(intent, connection, Context.BIND_AUTO_CREATE);
 
         transportsDAO = new OnRequestTransportsDAO();
         transportsDAO.getUpdates().observe(this, this::onTransportsUpdate);
         transportsDAO.requestUpdate();
 
-        alertsDAO = new OnRequestAlertsDAO();
-        alertsDAO.getUpdates().observe(this, this::onAlertsUpdate);
+        Intent alertsIntent = new Intent(this, AlertsService.class);
+        startService(alertsIntent);
+        bindService(alertsIntent, alertsConnection, Context.BIND_AUTO_CREATE);
 
         companiesDAO = new OnRequestCompaniesDAO();
         companiesDAO.getUpdates().observe(this, this::onCompaniesUpdate);
         companiesDAO.requestUpdate();
 
-        alertsDAO = new OnRequestAlertsDAO();
-        alertsDAO.getUpdates().observe(this, this::onAlertsUpdate);
-        alertsDAO.requestUpdate();
+        alertsService.getUpdates().removeObservers(this);
 
         taxisDAO = new OnRequestTaxisDAO();
         taxisDAO.requestUpdate();
@@ -455,6 +505,15 @@ public class OrariProcida2011Activity extends FragmentActivity {
         transportsDAO.getUpdates().removeObservers(this);
         weatherDAO.getUpdates().removeObservers(this);
         weatherDAO.close();
+
+        if (isBound) {
+            unbindService(connection);
+            isBound = false;
+        }
+        if (isAlertsBound) {
+            unbindService(alertsConnection);
+            isAlertsBound = false;
+        }
     }
 
 

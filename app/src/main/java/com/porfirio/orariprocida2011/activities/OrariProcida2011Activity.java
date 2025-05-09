@@ -57,12 +57,16 @@ import com.porfirio.orariprocida2011.entity.Porto;
 import com.porfirio.orariprocida2011.threads.alerts.AlertUpdate;
 import com.porfirio.orariprocida2011.threads.alerts.AlertsService;
 import com.porfirio.orariprocida2011.threads.alerts.OnRequestAlertsDAO;
+import com.porfirio.orariprocida2011.threads.companies.CompaniesService;
 import com.porfirio.orariprocida2011.threads.companies.CompaniesUpdate;
 import com.porfirio.orariprocida2011.threads.companies.OnRequestCompaniesDAO;
 import com.porfirio.orariprocida2011.threads.taxies.OnRequestTaxisDAO;
+import com.porfirio.orariprocida2011.threads.taxies.TaxisService;
 import com.porfirio.orariprocida2011.threads.transports.OnRequestTransportsDAO;
+import com.porfirio.orariprocida2011.threads.transports.TransportsService;
 import com.porfirio.orariprocida2011.threads.transports.TransportsUpdate;
 import com.porfirio.orariprocida2011.threads.weather.OnRequestWeatherDAO;
+import com.porfirio.orariprocida2011.threads.weather.WeatherService;
 import com.porfirio.orariprocida2011.threads.weather.WeatherUpdate;
 import com.porfirio.orariprocida2011.utils.Analytics;
 import com.porfirio.orariprocida2011.utils.AnalyticsApplication;
@@ -146,6 +150,79 @@ public class OrariProcida2011Activity extends FragmentActivity {
         public void onServiceDisconnected(ComponentName name) {
             alertsService = null;
             isAlertsBound = false;
+        }
+    };
+
+
+    private WeatherService weatherService;
+    private boolean isBound = false;
+
+    private TransportsService transportsService;
+    private boolean isTransportsBound = false;
+
+    private final ServiceConnection transportsConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            TransportsService.LocalBinder binder = (TransportsService.LocalBinder) service;
+
+            transportsService = binder.getService();
+            isTransportsBound = true;
+            Log.d("TransportsService", "Servizio trasporti connesso all'activity");
+
+            // Osserva gli aggiornamenti dei trasporti
+            transportsService.getUpdates().observe(OrariProcida2011Activity.this, OrariProcida2011Activity.this::onTransportsUpdate);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            transportsService = null;
+            isTransportsBound = false;
+        }
+    };
+
+    private CompaniesService companiesService;
+    private boolean isCompaniesBound = false;
+    private final ServiceConnection companiesConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            Log.d("CompaniesService", "Service Companies connesso all'Activity");
+            CompaniesService.LocalBinder binder = (CompaniesService.LocalBinder) service;
+            companiesService = binder.getService();
+            isCompaniesBound = true;
+
+            companiesService.getUpdates().observe(OrariProcida2011Activity.this, OrariProcida2011Activity.this::onCompaniesUpdate);
+
+            companiesService.requestUpdate();
+        }
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            companiesService = null;
+            isCompaniesBound = false;
+        }
+    };
+
+    private TaxisService taxisService;
+    private boolean isTaxisBound = false;
+    private final ServiceConnection taxisConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            TaxisService.LocalBinder binder = (TaxisService.LocalBinder) service;
+            taxisService = binder.getService();
+            isTaxisBound = true;
+
+            if (alertsService != null) {
+                dettagliMezzoDialog = new DettagliMezzoDialog(alertsService, taxisService);
+                dettagliMezzoDialog.setDettagliMezzoDialog(fm, OrariProcida2011Activity.this, OrariProcida2011Activity.this, c, meteo);
+                dettagliMezzoDialog.setAnalytics(analytics);
+            }
+        }
+
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            Log.e("TaxisService", "Service Taxi disconnesso!");
+            taxisService = null;
+            isTaxisBound = false;
         }
     };
 

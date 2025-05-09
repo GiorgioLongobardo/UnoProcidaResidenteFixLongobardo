@@ -8,8 +8,10 @@ import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Typeface;
@@ -19,6 +21,7 @@ import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.View;
 import android.widget.AbsListView;
@@ -52,6 +55,7 @@ import com.porfirio.orariprocida2011.entity.Mezzo;
 import com.porfirio.orariprocida2011.entity.Osservazione;
 import com.porfirio.orariprocida2011.entity.Porto;
 import com.porfirio.orariprocida2011.threads.alerts.AlertUpdate;
+import com.porfirio.orariprocida2011.threads.alerts.AlertsService;
 import com.porfirio.orariprocida2011.threads.alerts.OnRequestAlertsDAO;
 import com.porfirio.orariprocida2011.threads.companies.CompaniesUpdate;
 import com.porfirio.orariprocida2011.threads.companies.OnRequestCompaniesDAO;
@@ -117,6 +121,45 @@ public class OrariProcida2011Activity extends FragmentActivity {
     private LottieAnimationView lottieLoader;
     private ImageView blurredBackground;
     private boolean isTimePicked = false;
+
+    private final long ALERT_FREQUENCY_MILLISECONDS = 600000;   // 10 Min in millisecondi
+
+    private boolean isAlertsBound = false;
+
+    private AlertsService alertsService;
+    private final ServiceConnection alertsConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            AlertsService.LocalBinder binder = (AlertsService.LocalBinder) service;
+            alertsService = binder.getService();
+            isAlertsBound = true;
+
+            Log.d("AlertsService", "Servizio alert connesso!");
+
+            // segnalazioneDialog = new SegnalazioneDialog(alertsService);
+
+            // Osserviamo gli aggiornamenti sugli alert
+            alertsService.getUpdates().observe(OrariProcida2011Activity.this, OrariProcida2011Activity.this::onAlertsUpdate);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            alertsService = null;
+            isAlertsBound = false;
+        }
+    };
+
+    private final android.os.Handler handler = new android.os.Handler();
+    private final Runnable periodicAlertsUpdate = new Runnable() {
+        @Override
+        public void run() {
+            if (isAlertsBound && alertsService != null) {
+                alertsService.getUpdates().observe(OrariProcida2011Activity.this, OrariProcida2011Activity.this::onAlertsUpdate);
+                Log.d("ALERT PERIODICI", "ALERT AGGIORNATO");
+            }
+            handler.postDelayed(this, ALERT_FREQUENCY_MILLISECONDS); // ogni 5 secondi
+        }
+    };
 
 
     @Override
@@ -445,6 +488,12 @@ public class OrariProcida2011Activity extends FragmentActivity {
         snackbarView.setBackgroundColor(ContextCompat.getColor(this, R.color.tertiaryColor));
 
         snackbar.show();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        handler.post(periodicAlertsUpdate);
     }
 
     @Override

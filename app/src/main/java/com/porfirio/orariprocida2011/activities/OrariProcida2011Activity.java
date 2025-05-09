@@ -114,7 +114,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
     private OnRequestWeatherDAO weatherDAO;
     private OnRequestTransportsDAO transportsDAO;
     private OnRequestAlertsDAO alertsDAO;
-    private OnRequestTaxisDAO taxisDAO;
+    // private OnRequestTaxisDAO taxisDAO;
     private Analytics analytics;
 
     private boolean hasReceivedWeather, hasReceivedCompanies, hasReceivedTransports, hasReceivedAlerts;
@@ -156,6 +156,26 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
     private WeatherService weatherService;
     private boolean isBound = false;
+
+    private final ServiceConnection connection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            WeatherService.LocalBinder binder = (WeatherService.LocalBinder) service;
+            weatherService = binder.getService();
+            isBound = true;
+
+            // Osservare gli aggiornamenti meteo
+            weatherService.getUpdates().observe(OrariProcida2011Activity.this, OrariProcida2011Activity.this::onWeatherUpdate);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            weatherService = null;
+            isBound = false;
+        }
+    };
+
+
 
     private TransportsService transportsService;
     private boolean isTransportsBound = false;
@@ -282,8 +302,30 @@ public class OrariProcida2011Activity extends FragmentActivity {
         alertsDAO.getUpdates().observe(this, this::onAlertsUpdate);
         alertsDAO.requestUpdate();
 
-        taxisDAO = new OnRequestTaxisDAO();
-        taxisDAO.requestUpdate();
+        Intent intent = new Intent(this, WeatherService.class);
+        startService(intent);
+        bindService(intent, connection, Context.BIND_AUTO_CREATE);
+
+        Intent alertsIntent = new Intent(this, AlertsService.class);
+        startService(alertsIntent);
+        bindService(alertsIntent, alertsConnection, Context.BIND_AUTO_CREATE);
+
+        Intent transportsIntent = new Intent(this, TransportsService.class);
+        startService(transportsIntent);
+        bindService(transportsIntent, transportsConnection, Context.BIND_AUTO_CREATE);
+
+        Intent companiesIntent = new Intent(this, CompaniesService.class);
+        startService(companiesIntent);
+        bindService(companiesIntent, companiesConnection, Context.BIND_AUTO_CREATE);
+
+        Intent taxisIntent = new Intent(this, TaxisService.class);
+        startService(taxisIntent);
+        bindService(taxisIntent, taxisConnection, Context.BIND_AUTO_CREATE);
+
+
+        if (isTransportsBound && transportsService != null) {
+            transportsService.getUpdates().observe(this, this::onTransportsUpdate);
+        }
 
         fm = getSupportFragmentManager();
         myManager = (LocationManager) getSystemService(LOCATION_SERVICE);
@@ -461,7 +503,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
         aalvMezzi = new MezzoAdapter(this, selectMezzi, c);
         lvMezzi.setAdapter(aalvMezzi);
 
-        dettagliMezzoDialog = new DettagliMezzoDialog(alertsDAO, taxisDAO);
+        dettagliMezzoDialog = new DettagliMezzoDialog(alertsDAO, taxisService);
         dettagliMezzoDialog.setDettagliMezzoDialog(fm, this, this, c, meteo);
         dettagliMezzoDialog.setAnalytics(analytics);
 

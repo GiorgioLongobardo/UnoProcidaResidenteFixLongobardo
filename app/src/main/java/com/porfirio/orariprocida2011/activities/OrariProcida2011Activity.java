@@ -111,7 +111,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
     private FloatingActionButton weatherFab;
 
     private OnRequestCompaniesDAO companiesDAO;
-    private OnRequestWeatherDAO weatherDAO;
+    // private OnRequestWeatherDAO weatherDAO;
     private OnRequestTransportsDAO transportsDAO;
     private OnRequestAlertsDAO alertsDAO;
     // private OnRequestTaxisDAO taxisDAO;
@@ -282,10 +282,6 @@ public class OrariProcida2011Activity extends FragmentActivity {
         });
 
         analytics = new Analytics((AnalyticsApplication) getApplication());
-
-        weatherDAO = new OnRequestWeatherDAO();
-        weatherDAO.getUpdates().observe(this, this::onWeatherUpdate);
-        weatherDAO.requestUpdate();
 
         transportsDAO = new OnRequestTransportsDAO();
         transportsDAO.getUpdates().observe(this, this::onTransportsUpdate);
@@ -624,8 +620,8 @@ public class OrariProcida2011Activity extends FragmentActivity {
         alertsDAO.getUpdates().removeObservers(this);
         companiesDAO.getUpdates().removeObservers(this);
         transportsDAO.getUpdates().removeObservers(this);
-        weatherDAO.getUpdates().removeObservers(this);
-        weatherDAO.close();
+        weatherService.getUpdates().removeObservers(this);
+        // weatherService.close();
     }
 
 

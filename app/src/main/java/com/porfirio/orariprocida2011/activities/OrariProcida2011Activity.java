@@ -10,6 +10,7 @@ import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.location.Criteria;
@@ -49,6 +50,7 @@ import com.porfirio.orariprocida2011.entity.Compagnia;
 import com.porfirio.orariprocida2011.entity.Meteo;
 import com.porfirio.orariprocida2011.entity.Mezzo;
 import com.porfirio.orariprocida2011.entity.Osservazione;
+import com.porfirio.orariprocida2011.entity.Porto;
 import com.porfirio.orariprocida2011.threads.alerts.AlertUpdate;
 import com.porfirio.orariprocida2011.threads.alerts.OnRequestAlertsDAO;
 import com.porfirio.orariprocida2011.threads.companies.CompaniesUpdate;
@@ -71,6 +73,7 @@ import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Objects;
 import java.util.TimeZone;
 
 public class OrariProcida2011Activity extends FragmentActivity {
@@ -568,6 +571,12 @@ public class OrariProcida2011Activity extends FragmentActivity {
         return portoMezzo.equals(porto) || portoEspanso.contains(portoMezzo) || porto.equals(getString(R.string.qualsiasi_porto));
     }
 
+    private void inizializzaSpinnerConPorto() {
+        portoPartenza = setPortoPartenza();
+        setSpinner();
+    }
+
+
     private void setSpinner() {
         Spinner spnNave = findViewById(R.id.spnNave);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
@@ -575,14 +584,14 @@ public class OrariProcida2011Activity extends FragmentActivity {
         adapter.setDropDownViewResource(R.layout.spinner_item);
         spnNave.setAdapter(adapter);
 
-        nave = getString(R.string.qualsiasi_imbarcazione);
+        nave = getString(R.string.qualsiasi_porto);
         portoPartenza = getString(R.string.qualsiasi_porto);
         portoArrivo = getString(R.string.qualsiasi_porto);
 
         spnNave.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 nave = parent.getItemAtPosition(pos).toString();
-                aggiornaLista(false);
+                aggiornaLista(true);
             }
 
             public void onNothingSelected(AdapterView<?> parent) {
@@ -623,7 +632,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                     setSpnPortoArrivo(spnPortoArrivo, adapter2);
                     setSpnPortoPartenza(spnPortoPartenza, adapter3);
                 }
-                aggiornaLista(false);
+                aggiornaLista(true);
             }
 
             public void onNothingSelected(AdapterView<?> parent) {
@@ -643,7 +652,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                     setSpnPortoPartenza(spnPortoPartenza, adapter2);
                     setSpnPortoArrivo(spnPortoArrivo, adapter3);
                 }
-                aggiornaLista(false);
+                aggiornaLista(true);
             }
 
             public void onNothingSelected(AdapterView<?> parent) {
@@ -651,9 +660,10 @@ public class OrariProcida2011Activity extends FragmentActivity {
         });
     }
 
+
     private void setSpnPortoArrivo(Spinner spnPortoArrivo, final ArrayAdapter<CharSequence> adapter3) {
         for (int i = 0; i < spnPortoArrivo.getCount(); i++) {
-            if (adapter3.getItem(i).equals(portoArrivo)) {
+            if (Objects.equals(adapter3.getItem(i), portoArrivo)) {
                 spnPortoArrivo.setSelection(i);
             }
         }
@@ -661,85 +671,51 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
     private void setSpnPortoPartenza(Spinner spnPortoPartenza, ArrayAdapter<CharSequence> adapter2) {
         for (int i = 0; i < spnPortoPartenza.getCount(); i++) {
-            if (adapter2.getItem(i).equals(portoPartenza)) {
+            if (Objects.equals(adapter2.getItem(i), portoPartenza)) {
                 spnPortoPartenza.setSelection(i);
             }
         }
     }
 
     private String setPortoPartenza() {
-        // Trova il porto pi? vicino a quello di partenza
-        Location l = null;
-
-
-        if (ActivityCompat.checkSelfPermission(OrariProcida2011Activity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(OrariProcida2011Activity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            //System.exit(0);
-            return getString(R.string.qualsiasi_porto);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return getPortoPreferitoDaFile(); // fallback se permesso non concesso
         }
 
-        // l'accesso al GPS potrebbe non essere garantito per ragioni legate a Google Play
-        // Bisogna gestire l'eccezione e restituire un valore di default che si potrà settare in altro punto dell'app
+        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        Location location = null;
+
         try {
-            l = myManager.getLastKnownLocation(BestProvider);
-            Log.d("ACTIVITY", "Posizione:" + l.getLongitude() + "," + l.getLatitude());
+            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                location = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            }
         } catch (Exception e) {
-            Log.e("Activity", "GPS: ", e);
+            e.printStackTrace();
         }
-        if (l == null)
-            return getString(R.string.qualsiasi_porto);
-        //Coordinate angoli Procida
-        if ((l.getLatitude() > 40.7374) && (l.getLatitude() < 40.7733) && (l.getLongitude() > 13.9897) && (l.getLongitude() < 14.0325)) {
-            analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Procida");
-            return "Procida";
+
+        if (location == null) {
+            Toast.makeText(this, "Posizione non disponibile. Usiamo il porto preferito.", Toast.LENGTH_SHORT).show();
+            return getPortoPreferitoDaFile();
         }
-        //Coordinate angoli Isola d'Ischia
-        if ((l.getLatitude() > 40.6921) && (l.getLatitude() < 40.7626) && (l.getLongitude() > 13.8465) && (l.getLongitude() < 13.9722))
-            //Isola d'Ischia
-            if (calcolaDistanza(l, 13.9063, 40.7496) > calcolaDistanza(l, 13.9602, 40.7319)) {
-                analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Ischia");
-                return "Ischia";
-            } else {
-                analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Casamicciola");
-                return "Casamicciola";
-            }
-        //Inserire coordinate Napoli (media porti) e Pozzuoli
-        double distNapoli = calcolaDistanza(l, 14.2575, 40.84);
-        Log.d("OrariProcida", "d(Napoli)=" + distNapoli);
-        double distPozzuoli = calcolaDistanza(l, 14.1179, 40.8239);
-        Log.d("OrariProcida", "d(Pozzuoli)=" + distPozzuoli);
-        double distMonteProcida = calcolaDistanza(l, 14.05, 40.8);
-        if (distMonteProcida < 1500) {
-            analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Monte di Procida");
-            return "Monte di Procida";
+
+        List<Porto> porti = Porto.caricaPorti(this);
+        String vicino = Porto.calcolaPortoPiuVicino(location, porti, 15000);
+
+        if (vicino == null) {
+            Log.d("GPS", "Posizione null, fallback su porto preferito");
+            Toast.makeText(this, "Nessun porto rilevato vicino. Usiamo la preferenza salvata.", Toast.LENGTH_SHORT).show();
+            return getPortoPreferitoDaFile();
         }
-        if (distPozzuoli < distNapoli) {
-            if (distPozzuoli < 15000) {
-                analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Pozzuoli");
-                return "Pozzuoli";
-            } else {
-                analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Napoli o Pozzuoli");
-                return "Napoli o Pozzuoli";
-            }
-        } else {
-            if (distNapoli < 15000) {
-                if (distNapoli > 1000) {
-                    analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Napoli");
-                    return "Napoli";
-                } else {
-                    if (calcolaDistanza(l, 14.2548, 40.8376) < calcolaDistanza(l, 14.2602, 40.8424)) {
-                        analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Napoli Beverello");
-                        return "Napoli Beverello";
-                    } else {
-                        analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Napoli Porta di Massa");
-                        return "Napoli Porta di Massa";
-                    }
-                }
-            } else {
-                analytics.send(ANALYTICS_CATEGORY_USER_EVENT, "From Napoli o Pozzuoli");
-                return "Napoli o Pozzuoli";
-            }
-        }
+        Log.d("GPS", "Posizione ottenuta: lat=" + location.getLatitude() + ", lon=" + location.getLongitude());
+        return vicino;
     }
+
+
+    private String getPortoPreferitoDaFile() {
+        SharedPreferences prefs = getSharedPreferences("prefs", MODE_PRIVATE);
+        return prefs.getString("porto_preferito", getString(R.string.qualsiasi_porto)); // "Tutti" come fallback
+    }
+
 
     private double calcolaDistanza(Location location, double lon, double lat) {
         //calcola distanza da obiettivo

@@ -112,7 +112,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
     // private OnRequestCompaniesDAO companiesDAO;
     // private OnRequestWeatherDAO weatherDAO;
-    private OnRequestTransportsDAO transportsDAO;
+    // private OnRequestTransportsDAO transportsDAO;
     private OnRequestAlertsDAO alertsDAO;
     // private OnRequestTaxisDAO taxisDAO;
     private Analytics analytics;
@@ -282,10 +282,6 @@ public class OrariProcida2011Activity extends FragmentActivity {
         });
 
         analytics = new Analytics((AnalyticsApplication) getApplication());
-
-        transportsDAO = new OnRequestTransportsDAO();
-        transportsDAO.getUpdates().observe(this, this::onTransportsUpdate);
-        transportsDAO.requestUpdate();
 
         alertsDAO = new OnRequestAlertsDAO();
         alertsDAO.getUpdates().observe(this, this::onAlertsUpdate);
@@ -483,7 +479,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
                 lottieLoader.playAnimation();
 
                 blurredBackground.setVisibility(VISIBLE);
-                transportsDAO.requestUpdate();
+                transportsService.getUpdates();
 
                 swipe_refresh_layout.setRefreshing(false);
             }
@@ -515,7 +511,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
             lottieLoader.playAnimation();
 
             blurredBackground.setVisibility(VISIBLE);
-            transportsDAO.requestUpdate();
+            transportsService.getUpdates();
         });
 
 
@@ -615,7 +611,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
         // LiveData should automatically remove destroyed observers but let's do it for clarity's sake
         alertsDAO.getUpdates().removeObservers(this);
         companiesService.getUpdates().removeObservers(this);
-        transportsDAO.getUpdates().removeObservers(this);
+        transportsService.getUpdates().removeObservers(this);
         weatherService.getUpdates().removeObservers(this);
         // weatherService.close();
     }

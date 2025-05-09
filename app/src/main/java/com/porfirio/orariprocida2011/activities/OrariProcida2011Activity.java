@@ -110,7 +110,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
     private String BestProvider;
     private FloatingActionButton weatherFab;
 
-    private OnRequestCompaniesDAO companiesDAO;
+    // private OnRequestCompaniesDAO companiesDAO;
     // private OnRequestWeatherDAO weatherDAO;
     private OnRequestTransportsDAO transportsDAO;
     private OnRequestAlertsDAO alertsDAO;
@@ -289,10 +289,6 @@ public class OrariProcida2011Activity extends FragmentActivity {
 
         alertsDAO = new OnRequestAlertsDAO();
         alertsDAO.getUpdates().observe(this, this::onAlertsUpdate);
-
-        companiesDAO = new OnRequestCompaniesDAO();
-        companiesDAO.getUpdates().observe(this, this::onCompaniesUpdate);
-        companiesDAO.requestUpdate();
 
         alertsDAO = new OnRequestAlertsDAO();
         alertsDAO.getUpdates().observe(this, this::onAlertsUpdate);
@@ -618,7 +614,7 @@ public class OrariProcida2011Activity extends FragmentActivity {
         // NOTE:
         // LiveData should automatically remove destroyed observers but let's do it for clarity's sake
         alertsDAO.getUpdates().removeObservers(this);
-        companiesDAO.getUpdates().removeObservers(this);
+        companiesService.getUpdates().removeObservers(this);
         transportsDAO.getUpdates().removeObservers(this);
         weatherService.getUpdates().removeObservers(this);
         // weatherService.close();
